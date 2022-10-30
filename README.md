@@ -14,7 +14,7 @@ Each script file contains a SQL script targeting a specific task listed below. S
 
 ## Scripts
 
-### C# Object Creator ([CSharpObjectCreator.sql.sql](https://github.com/mahadikrahul/sql-scripts/Scripts/CSharpObjectCreator.sql))
+### C# Object Creator ([CSharpObjectCreator.sql](/Scripts/CSharpObjectCreator.sql))
 
 This script will print the C# object in the messages area that we can use in the below areas of our code.
 
