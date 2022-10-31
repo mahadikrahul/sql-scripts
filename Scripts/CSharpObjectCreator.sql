@@ -1,8 +1,8 @@
 SET NOCOUNT ON;
 
-DECLARE @TableName VARCHAR(50) = '',    -- Table Name.
-        @Clause NVARCHAR(MAX) = '',     -- Any specific condition for the table.
-        @SkipFields NVARCHAR(MAX) = ''; -- Comma separated names of the fields we want to skip.
+DECLARE @TableName VARCHAR(50) = '', -- Table Name.
+        @Clause NVARCHAR(MAX) = '',           -- Any specific condition for the table.
+        @SkipFields NVARCHAR(MAX) = '';       -- Comma separated names of the fields we want to skip.
 DECLARE @Query NVARCHAR(MAX) = '',
         @ColumnsCount INT = 0,
         @ColumnName NVARCHAR(100) = '',
@@ -77,7 +77,7 @@ SET @SelectedColumns =
 (
     SELECT STUFF(
            (
-               SELECT ', ' + ColumnName FROM @Columns C ORDER BY 1 FOR XML PATH('')
+               SELECT ', ' + ColumnName FROM @Columns C FOR XML PATH('')
            ),
            1,
            1,
@@ -191,7 +191,7 @@ BEGIN
         SET @I = @I + 1;
     END
 
-    DECLARE @EndingBracket VARCHAR(5) = '}'
+    DECLARE @EndingBracket VARCHAR(5) = ' }'
 
     IF (@TableRowNumber < @RowsCount)
     BEGIN
