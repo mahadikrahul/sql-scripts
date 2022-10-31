@@ -1,9 +1,9 @@
 SET NOCOUNT ON;
 
-DECLARE @TableName VARCHAR(50) = '', -- Table Name.
-        @Clause NVARCHAR(MAX) = ''; -- Any specific condition for the table.
-DECLARE @SkipFields NVARCHAR(MAX) = '',
-        @Query NVARCHAR(MAX) = '',
+DECLARE @TableName VARCHAR(50) = '',    -- Table Name.
+        @Clause NVARCHAR(MAX) = '',     -- Any specific condition for the table.
+        @SkipFields NVARCHAR(MAX) = ''; -- Comma separated names of the fields we want to skip.
+DECLARE @Query NVARCHAR(MAX) = '',
         @ColumnsCount INT = 0,
         @ColumnName NVARCHAR(100) = '',
         @ColumnDataType NVARCHAR(100) = '',
@@ -26,38 +26,67 @@ BEGIN
     SET @Clause = ''
 END
 
+SET @SkipFields = ISNULL(@SkipFields, '');
+
 INSERT INTO @Columns
 SELECT C.COLUMN_NAME,
-       (CASE
-            WHEN C.DATA_TYPE IN ( 'decimal', 'numeric' ) THEN
-                C.DATA_TYPE + '(' + CAST(ISNULL(C.NUMERIC_PRECISION, 8) AS VARCHAR(100)) + ','
-                + CAST(ISNULL(C.NUMERIC_SCALE, 8) AS VARCHAR(100)) + ')'
-            WHEN C.DATA_TYPE IN ( 'varchar', 'nvarchar', 'char' ) THEN
-                C.DATA_TYPE + '('
-                + CAST((CASE
-                            WHEN C.CHARACTER_OCTET_LENGTH = -1 THEN
-                                'max'
-                            ELSE
-                                CAST(C.CHARACTER_OCTET_LENGTH / (CASE
-                                                                     WHEN C.DATA_TYPE = 'nvarchar' THEN
-                                                                         2
-                                                                     ELSE
-                                                                         1
-                                                                 END
-                                                                ) AS VARCHAR(100))
-                        END
-                       ) AS VARCHAR(100)) + ')'
-            ELSE
-                DATA_TYPE
-        END
-       )
+       [DataType] = (CASE
+                         WHEN C.DATA_TYPE IN ( 'decimal', 'numeric' ) THEN
+                             C.DATA_TYPE + '(' + CAST(ISNULL(C.NUMERIC_PRECISION, 8) AS VARCHAR(100)) + ','
+                             + CAST(ISNULL(C.NUMERIC_SCALE, 8) AS VARCHAR(100)) + ')'
+                         WHEN C.DATA_TYPE IN ( 'varchar', 'nvarchar', 'char' ) THEN
+                             C.DATA_TYPE + '('
+                             + CAST((CASE
+                                         WHEN C.CHARACTER_OCTET_LENGTH = -1 THEN
+                                             'max'
+                                         ELSE
+                                             CAST(C.CHARACTER_OCTET_LENGTH / (CASE
+                                                                                  WHEN C.DATA_TYPE = 'nvarchar' THEN
+                                                                                      2
+                                                                                  ELSE
+                                                                                      1
+                                                                              END
+                                                                             ) AS VARCHAR(100))
+                                     END
+                                    ) AS VARCHAR(100)) + ')'
+                         ELSE
+                             DATA_TYPE
+                     END
+                    )
 FROM sys.tables T
     INNER JOIN INFORMATION_SCHEMA.COLUMNS C
         ON C.TABLE_NAME = T.name
 WHERE name = @TableName
+      AND
+      (
+          @SkipFields = ''
+          OR NOT EXISTS
+(
+    SELECT 1
+    FROM STRING_SPLIT(@SkipFields, ',') S
+    WHERE RTRIM(LTRIM(S.value)) = C.COLUMN_NAME
+)
+      )
 
 SELECT @ColumnsCount = COUNT(*)
 FROM @Columns
+
+DECLARE @SelectedColumns VARCHAR(MAX) = ''
+
+SET @SelectedColumns =
+(
+    SELECT STUFF(
+           (
+               SELECT ', ' + ColumnName FROM @Columns C ORDER BY 1 FOR XML PATH('')
+           ),
+           1,
+           1,
+           ''
+                )
+)
+
+IF OBJECT_ID('tempdb..#Temp') IS NOT NULL
+    DROP TABLE #Temp
 
 CREATE TABLE #Temp
 (
@@ -75,7 +104,8 @@ SET @UpdateTemp = SUBSTRING(@UpdateTemp, 0, LEN(@UpdateTemp))
 
 EXEC (@UpdateTemp)
 
-SET @TempTableQuery = 'Select RowNum = ROW_NUMBER() OVER (ORDER BY (SELECT 1)), * FROM ' + @TableName + @Clause
+SET @TempTableQuery
+    = 'Select RowNum = ROW_NUMBER() OVER (ORDER BY (SELECT 1)), ' + @SelectedColumns + ' FROM ' + @TableName + @Clause
 
 INSERT INTO #Temp
 EXEC (@TempTableQuery)
@@ -161,7 +191,14 @@ BEGIN
         SET @I = @I + 1;
     END
 
-    SET @Query = @Query + ' },'
+    DECLARE @EndingBracket VARCHAR(5) = '}'
+
+    IF (@TableRowNumber < @RowsCount)
+    BEGIN
+        SET @EndingBracket = @EndingBracket + ','
+    END
+
+    SET @Query = @Query + @EndingBracket
 
     PRINT (@Query)
 
