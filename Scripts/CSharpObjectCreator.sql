@@ -54,10 +54,26 @@ SELECT C.COLUMN_NAME,
 FROM sys.tables T
     INNER JOIN INFORMATION_SCHEMA.COLUMNS C
         ON C.TABLE_NAME = T.name
+OUTER APPLY (
+	Select value 
+	from string_split(@SkipFields, ',')
+) SF
 WHERE name = @TableName
+AND COLUMN_NAME <> SF.value
+AND DATA_TYPE NOT IN ('TIMESTAMP')
 
 SELECT @ColumnsCount = COUNT(*)
 FROM @Columns
+
+Declare @SelectedColumns NVARCHAR(MAX) = '';
+
+Select @SelectedColumns = @SelectedColumns + ColumnName +  ', '
+FROM @Columns
+
+SET @SelectedColumns = SUBSTRING(@SelectedColumns, 0, LEN(@SelectedColumns))
+
+IF OBJECT_ID('tempdb..#Temp') IS NOT NULL
+    DROP TABLE #Temp
 
 CREATE TABLE #Temp
 (
@@ -75,7 +91,7 @@ SET @UpdateTemp = SUBSTRING(@UpdateTemp, 0, LEN(@UpdateTemp))
 
 EXEC (@UpdateTemp)
 
-SET @TempTableQuery = 'Select RowNum = ROW_NUMBER() OVER (ORDER BY (SELECT 1)), * FROM ' + @TableName + @Clause
+SET @TempTableQuery = 'Select RowNum = ROW_NUMBER() OVER (ORDER BY (SELECT 1)), ' + @SelectedColumns + ' FROM ' + @TableName + @Clause
 
 INSERT INTO #Temp
 EXEC (@TempTableQuery)
