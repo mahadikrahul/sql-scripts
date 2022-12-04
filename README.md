@@ -24,6 +24,8 @@ This script will print the C# object in the messages area that we can use in the
 
 2. Add any desired condition to the table that you want to filter the result. However, we can keep it blank for all records to populate.
 
+3. Add any field in @SkipField to skip populating in the object.
+
 ## Author
 
 [Rahul Mahadik](https://github.com/mahadikrahul)

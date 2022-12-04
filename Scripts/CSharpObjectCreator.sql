@@ -1,9 +1,9 @@
 SET NOCOUNT ON;
 
 DECLARE @TableName VARCHAR(50) = '', -- Table Name.
-        @Clause NVARCHAR(MAX) = ''; -- Any specific condition for the table.
-DECLARE @SkipFields NVARCHAR(MAX) = '',
-        @Query NVARCHAR(MAX) = '',
+        @Clause NVARCHAR(MAX) = '',           -- Any specific condition for the table.
+        @SkipFields NVARCHAR(MAX) = '';       -- Comma separated names of the fields we want to skip.
+DECLARE @Query NVARCHAR(MAX) = '',
         @ColumnsCount INT = 0,
         @ColumnName NVARCHAR(100) = '',
         @ColumnDataType NVARCHAR(100) = '',
@@ -26,31 +26,33 @@ BEGIN
     SET @Clause = ''
 END
 
+SET @SkipFields = ISNULL(@SkipFields, '');
+
 INSERT INTO @Columns
 SELECT C.COLUMN_NAME,
-       (CASE
-            WHEN C.DATA_TYPE IN ( 'decimal', 'numeric' ) THEN
-                C.DATA_TYPE + '(' + CAST(ISNULL(C.NUMERIC_PRECISION, 8) AS VARCHAR(100)) + ','
-                + CAST(ISNULL(C.NUMERIC_SCALE, 8) AS VARCHAR(100)) + ')'
-            WHEN C.DATA_TYPE IN ( 'varchar', 'nvarchar', 'char' ) THEN
-                C.DATA_TYPE + '('
-                + CAST((CASE
-                            WHEN C.CHARACTER_OCTET_LENGTH = -1 THEN
-                                'max'
-                            ELSE
-                                CAST(C.CHARACTER_OCTET_LENGTH / (CASE
-                                                                     WHEN C.DATA_TYPE = 'nvarchar' THEN
-                                                                         2
-                                                                     ELSE
-                                                                         1
-                                                                 END
-                                                                ) AS VARCHAR(100))
-                        END
-                       ) AS VARCHAR(100)) + ')'
-            ELSE
-                DATA_TYPE
-        END
-       )
+       [DataType] = (CASE
+                         WHEN C.DATA_TYPE IN ( 'decimal', 'numeric' ) THEN
+                             C.DATA_TYPE + '(' + CAST(ISNULL(C.NUMERIC_PRECISION, 8) AS VARCHAR(100)) + ','
+                             + CAST(ISNULL(C.NUMERIC_SCALE, 8) AS VARCHAR(100)) + ')'
+                         WHEN C.DATA_TYPE IN ( 'varchar', 'nvarchar', 'char' ) THEN
+                             C.DATA_TYPE + '('
+                             + CAST((CASE
+                                         WHEN C.CHARACTER_OCTET_LENGTH = -1 THEN
+                                             'max'
+                                         ELSE
+                                             CAST(C.CHARACTER_OCTET_LENGTH / (CASE
+                                                                                  WHEN C.DATA_TYPE = 'nvarchar' THEN
+                                                                                      2
+                                                                                  ELSE
+                                                                                      1
+                                                                              END
+                                                                             ) AS VARCHAR(100))
+                                     END
+                                    ) AS VARCHAR(100)) + ')'
+                         ELSE
+                             DATA_TYPE
+                     END
+                    )
 FROM sys.tables T
     INNER JOIN INFORMATION_SCHEMA.COLUMNS C
         ON C.TABLE_NAME = T.name
@@ -177,7 +179,14 @@ BEGIN
         SET @I = @I + 1;
     END
 
-    SET @Query = @Query + ' },'
+    DECLARE @EndingBracket VARCHAR(5) = ' }'
+
+    IF (@TableRowNumber < @RowsCount)
+    BEGIN
+        SET @EndingBracket = @EndingBracket + ','
+    END
+
+    SET @Query = @Query + @EndingBracket
 
     PRINT (@Query)
 
