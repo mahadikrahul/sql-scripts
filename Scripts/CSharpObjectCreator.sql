@@ -69,7 +69,7 @@ FROM @Columns
 
 Declare @SelectedColumns NVARCHAR(MAX) = '';
 
-Select @SelectedColumns = @SelectedColumns + ColumnName +  ', '
+Select @SelectedColumns = @SelectedColumns + '[' + ColumnName + '], '
 FROM @Columns
 
 SET @SelectedColumns = SUBSTRING(@SelectedColumns, 0, LEN(@SelectedColumns))
@@ -82,11 +82,11 @@ CREATE TABLE #Temp
     RowNum INT
 )
 
-DECLARE @UpdateTemp NVARCHAR(MAX) = ' ALTER TABLE #Temp ADD ';
+DECLARE @UpdateTemp NVARCHAR(MAX) = ' ALTER TABLE #Temp ADD';
 
 SET @UpdateTemp = @UpdateTemp + ' ';
 
-SELECT @UpdateTemp = @UpdateTemp + ' ' + ColumnName + ' ' + DataType + ', '
+SELECT @UpdateTemp = @UpdateTemp + ' [' + ColumnName + '] ' + DataType + ', '
 FROM @Columns
 
 SET @UpdateTemp = SUBSTRING(@UpdateTemp, 0, LEN(@UpdateTemp))
@@ -117,7 +117,7 @@ BEGIN
         WHERE Id = @I
 
         SET @SubQuery
-            = 'Select TOP 1  @SubQueryResult = CAST(' + @ColumnName + ' AS NVARCHAR(MAX)) FROM #Temp WHERE RowNum = '
+            = 'Select TOP 1  @SubQueryResult = CAST([' + @ColumnName + '] AS NVARCHAR(MAX)) FROM #Temp WHERE RowNum = '
               + CAST(@TableRowNumber AS VARCHAR(50)) + ''
 
         EXEC sp_executeSQl @SubQuery,
